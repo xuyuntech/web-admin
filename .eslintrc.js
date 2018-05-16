@@ -7,5 +7,6 @@ module.exports = {
         "jsx-a11y/anchor-is-valid": "off",
         "react/prefer-stateless-function": "off",
         "no-script-url": "off",
+        "camelcase": "off",
     },
 };

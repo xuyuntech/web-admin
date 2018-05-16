@@ -1,7 +1,7 @@
 export const BaseURL = 'https://api.boxlinker.com';
 export const DEV = process.env.NODE_ENV === 'development';
 const DevURL = {
-  INVENTORY_SYNC: 'http://localhost:3001',
+  INVENTORY_SYNC: 'http://localhost:8080',
 };
 
 
