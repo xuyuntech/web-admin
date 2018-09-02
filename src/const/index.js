@@ -16,6 +16,7 @@ export const API = {
   INVENTORY_SYNC: {
     SYNC_ALL: getURL('/syncAll', 'INVENTORY_SYNC'),
     UPLOAD: getURL('/upload', 'INVENTORY_SYNC'),
+    PARSING: getURL('/inventorySync/parsing', 'INVENTORY_SYNC'),
   },
 };
 

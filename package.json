@@ -4,6 +4,7 @@
   "private": true,
   "dependencies": {
     "antd": "^3.4.5",
+    "fetch-stream": "^0.6.5",
     "isomorphic-fetch": "^2.2.1",
     "js-cookie": "^2.2.0",
     "lodash": "^4.17.10",

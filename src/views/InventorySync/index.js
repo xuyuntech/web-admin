@@ -1,7 +1,7 @@
 import React from 'react';
 import { Upload, message, Icon, Table, Button, Pagination, Spin } from 'antd';
-import { Link } from 'react-router-dom';
 import _ from 'lodash';
+import fetchStream from 'fetch-stream';
 import bFetch from '../../common/BFetch';
 import { API } from '../../const';
 
@@ -20,8 +20,8 @@ export default class extends React.Component {
     super(props);
     this.columns = [{
       title: '商品名称',
-      dataIndex: 'title',
-      key: 'title',
+      dataIndex: 'item_title',
+      key: 'item_title',
     }, {
       title: '商品编码',
       dataIndex: 'item_no',
@@ -56,6 +56,7 @@ export default class extends React.Component {
   }
   state = {
     uploading: false,
+    parsing: false,
     uploaded: false,
     syncingAll: false,
     syncData: [],
@@ -87,6 +88,8 @@ export default class extends React.Component {
           }
           if (response.status === 0) {
             console.log(response);
+            message.success('文件上传成功，开始解析');
+            this.startParse();
             // const hasData = response.data.length > 0;
             // this.setState({ uploaded: hasData, syncData: response.data });
             // if (!hasData) {
@@ -149,6 +152,65 @@ export default class extends React.Component {
 
     // });
   };
+  addTableLine(str) {
+    const { syncData } = this.state;
+    console.log('str -> ', str);
+    try {
+      const data = JSON.parse(str);
+      const {
+        item_id, item_no, item_title, offline_id, offline_name, skus,
+      } = data;
+      let changesByShop = [];
+      const idx = _.findIndex(syncData, { item_id });
+      if (idx >= 0) {
+        changesByShop = syncData[idx].changesByShop; //eslint-disable-line
+      }
+      changesByShop.push({
+        offline_id, offline_name, skus,
+      });
+      const d = {
+        item_id, item_no, item_title, changesByShop,
+      };
+      if (idx >= 0) {
+        syncData[idx] = d;
+      } else {
+        syncData.push(d);
+      }
+      this.setState({ syncData });
+    } catch (err) {
+      console.error('addTableLine err:', err);
+    }
+  }
+  startParse() {
+    this.setState({ parsing: true });
+    fetchStream(
+      {
+        url: `${API.INVENTORY_SYNC.PARSING}`,
+      },
+      (result, err) => {
+        if (err) {
+          console.error('fetchStream err', err);
+          return false;
+        }
+        if (!result) {
+          console.error('fetchStream no result');
+          return false;
+        }
+        if (result.done) {
+          console.log('fetchStream done');
+          return;
+        }
+        const str = String(result.value);
+        switch (str) {
+          case 'ping':
+            return true;
+          default:
+            this.addTableLine(str);
+        }
+        return true;
+      },
+    );
+  }
   updateStatus(item_no, status, err = null) {
     const { syncData = [] } = this.state;
     const i = _.findIndex(syncData, o => o.item_no === item_no);
@@ -162,21 +224,21 @@ export default class extends React.Component {
     const { changesByShop } = record;
     return (
       changesByShop.map((item) => {
-        const { shopName, skus_change_json } = item;
+        const { offline_name, skus } = item;
         return (
-          <div key={shopName}>
-            <p>{shopName}</p>
+          <div key={offline_name}>
+            <p>{offline_name}</p>
             <div>
               {
-                skus_change_json.map((sku) => {
+                skus.map((sku) => {
                   const {
-                    origin, sku_property, to, sku_id,
+                    k, v, price, quantity, to_price, to_quantity, id,
                   } = sku;
                   return (
-                    <p key={sku_id}>
-                      {`规格: ${sku_property.join(':')}, `}
-                      <span className={`badge badge-${priceQuantityCls(origin.price, to.price)}`}>{`价格变化: ${origin.price} -> ${Number.prototype.toFixed.call(to.price, 2)}, `}</span>
-                      <span className={`badge badge-${priceQuantityCls(origin.quantity, to.quantity)}`}>{`库存变化: ${origin.quantity} -> ${to.quantity}`}</span>
+                    <p key={id}>
+                      {`规格: ${k}:${v}, `}
+                      <span className={`badge badge-${priceQuantityCls(price, to_price)}`}>{`价格变化: ${price} -> ${Number.prototype.toFixed.call(to_price, 2)}, `}</span>
+                      <span className={`badge badge-${priceQuantityCls(quantity, to_quantity)}`}>{`库存变化: ${quantity} -> ${to_quantity}`}</span>
                     </p>
                   );
                 })
@@ -188,7 +250,7 @@ export default class extends React.Component {
     );
   };
   render() {
-    const { syncData = [], uploading } = this.state;
+    const { syncData = [], parsing } = this.state;
     return (
       <div className="panel">
         <div className="panel-heading">
@@ -198,7 +260,7 @@ export default class extends React.Component {
           {this.getActions()}
           <p />
           <Table
-            loading={uploading}
+            loading={parsing}
             style={{ backgroundColor: '#fff' }}
             expandedRowRender={this.expandedRowRender}
             defaultExpandAllRows
